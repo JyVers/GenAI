@@ -1,0 +1,845 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d0ae8b5a-978f-4b74-9712-272b59bbc80a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"0\": \"devops\",\n  \"1\": \"ci/cd\",\n  \"2\": \"kubernetes\",\n  \"3\": \"python\",\n  \"4\": \"javascript\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        112
+      ],
+      "id": "498dbdbc-6f76-49cd-aa41-51cabdbe6f42",
+      "name": "technologies"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"0\": \"Barcelona\",\n  \"1\": \"Stockholm\",\n  \"2\": \"Vienna\",\n  \"3\": \"Berlin\",\n  \"4\": \"Amsterdam\",\n  \"5\": \"Oslo\",\n  \"6\": \"Vilnius\",\n  \"7\": \"Zurich\",\n  \"8\": \"Frankfurt\",\n  \"9\": \"Prague\",\n  \"10\": \"Brussels\",\n  \"11\": \"Bucharest\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        -112
+      ],
+      "id": "638da928-29df-4180-83b0-23ebe6e8c415",
+      "name": "cities"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        512,
+        -144
+      ],
+      "id": "854904fe-fe36-4c5e-a00b-46585a52bbb0",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "XKb6mWTBPlCxIHlj",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:8000/mcp",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        -144
+      ],
+      "id": "2e03eeca-d198-47b8-afd6-38761c0fefbe",
+      "name": "MCP Client"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Execute city_score tool for each city in : {{ $('cities').item.json.values() }}. Return a JSON like {city: city_score, city: city_score}.\n\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        512,
+        -304
+      ],
+      "id": "d0b950e1-00c1-442a-84ee-dac14d08d547",
+      "name": "Get city_score",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.combination }}\",\n  \"search_depth\": \"basic\",\n  \"chunks_per_source\": 3,\n  \"max_results\": 15,\n  \"topic\": \"general\",\n  \"time_range\": \"month\",\n  \"start_date\": null,\n  \"end_date\": null,\n  \"include_answer\": true,\n  \"include_raw_content\": false,\n  \"include_images\": false,\n  \"include_image_descriptions\": false,\n  \"include_favicon\": false,\n  \"include_domains\": [],\n  \"exclude_domains\": [],\n  \"country\": null,\n  \"auto_parameters\": false,\n  \"include_raw_content\": true,\n  \"include_usage\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        864,
+        0
+      ],
+      "id": "bd1d7671-00b9-4926-807c-3d2a22b477e6",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cities = Object.values($(\"cities\").all()[0].json);\nconst technologies = Object.values($(\"technologies\").all()[0].json);\n\nconst combinations = [];\n\nfor (const city of cities) {\n  for (const technology of technologies) {\n    combinations.push({\n      city: city,\n      techno: technology,\n      combination: `internship ${city} ${technology} careers`\n    });\n  }\n}\n\nreturn combinations.map((item, index) => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "f1168e44-da70-46ac-891c-7c0c76e778a9",
+      "name": "Combining Script"
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractJSON() {  \n  const output = $(\"Get city_score\").first().json.output\n  \n  const cleaned = output\n    .replace(/```json\\n?/g, '')\n    .replace(/```/g, '')\n    .trim();\n  \n  // Parse to JSON\n  return JSON.parse(cleaned);\n}\n\nconst result = extractJSON();\nreturn result\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -304
+      ],
+      "id": "9aa3fc7f-1630-439d-b66b-469602dc9814",
+      "name": "JSON city_score"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $('HTTP Request').all()) {\n  const data = item.json;\n  \n  data.results.forEach(result => {\n    results.push({\n      json: {\n        query: data.query,\n        city_score: $('JSON city_score').first().json[data.query.split(\" \")[1]],\n        follow_up_questions: data.follow_up_questions,\n        answer: data.answer,\n        images: data.images,\n        response_time: data.response_time,\n        request_id: data.request_id,\n        myNewField: data.myNewField,\n        \n        url: result.url,\n        title: result.title,\n        content: result.content,\n        score: result.score,\n        raw_content: result.raw_content\n      }\n    });\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        0
+      ],
+      "id": "10aeba9c-604f-4f74-ab97-8fc2aae1e987",
+      "name": "Flatten results and concatenate city_score"
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "city_score",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        0
+      ],
+      "id": "1748ac0b-b1de-4e2b-ac14-9149f78c0cd1",
+      "name": "Sort"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c125bb2c-544d-4f08-95fa-2fdcc8569eb8",
+              "leftValue": "={{ $json.raw_content }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1680,
+        0
+      ],
+      "id": "12df8063-e338-4e9c-95d3-bb46fe690a08",
+      "name": "Filter for not empty raw_content"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=Here is a short summary of five internship opportunities to explore for the coming months:\n\n🛠️ **[{{ $('Get only 5 results').all()[0].json.title }}](<{{ $('Get only 5 results').all()[0].json.url }}>)** - {{ $('Get only 5 results').all()[0].json.date }}\n{{ $('Get only 5 results').all()[0].json.summary }}\n\n💻 **[{{ $('Get only 5 results').all()[1].json.title }}](<{{ $('Get only 5 results').all()[1].json.url }}>)** - {{ $('Get only 5 results').all()[1].json.date }}\n{{ $('Get only 5 results').all()[1].json.summary }}\n\n🌍 **[{{ $('Get only 5 results').all()[2].json.title }}](<{{ $('Get only 5 results').all()[2].json.url }}>)** - {{ $('Get only 5 results').all()[2].json.date }}\n{{ $('Get only 5 results').all()[2].json.summary }}\n\n🚀 **[{{ $('Get only 5 results').all()[3].json.title }}](<{{ $('Get only 5 results').all()[3].json.url }}>)** - {{ $('Get only 5 results').all()[3].json.date }}\n{{ $('Get only 5 results').all()[3].json.summary }}\n\n🔧 **[{{ $('Get only 5 results').all()[4].json.title }}](<{{ $('Get only 5 results').all()[4].json.url }}>)** - {{ $('Get only 5 results').all()[4].json.date }}\n{{ $('Get only 5 results').all()[4].json.summary }}\n\n📌 Next steps: review each opportunity in detail and prioritize applications.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        5008,
+        -16
+      ],
+      "id": "6b950f8d-ffbd-4a03-aeb1-5373a4fab5d3",
+      "name": "Discord",
+      "webhookId": "eb072228-96c3-4cb6-ab10-a83d53caa914",
+      "executeOnce": true,
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "jzytKq2Njspgxy1a",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are given the following data:\n\n{{ $json.values() }}\n\nTask:\nIf the information is available, extract and normalize the following fields:\n- date\n- salary\n- skills (as an array of strings)\n\nRules:\n- If a field is not present or cannot be inferred, set its value to null.\n- If no skills are found, return an empty array.\n- Do not add extra fields.\n- Return ONLY valid JSON.\n- Do not include explanations or comments.\n\nExpected output format:\n{\n  \"date\": \"YYYY-MM-DD\" | null,\n  \"salary\": number | string | null,\n  \"skills\": [\"skill1\", \"skill2\"] | []\n}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1888,
+        -288
+      ],
+      "id": "b89568a4-d810-47ca-9c9f-30b96114240c",
+      "name": "Extract date, salary and skills",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// For n8n, use $input.all() to get all items\nconst items = $input.all();\n\nconst formatted = items\n  .map((item, index) => {\n    const data = item.json;\n    \n    // Skip error entries\n    if (data.error) {\n      return null;\n    }\n\n    try {\n      // Extract JSON from the output string\n      const jsonMatch = data.output.match(/```json\\n([\\s\\S]*?)\\n```/);\n      if (!jsonMatch) {\n        return null;\n      }\n\n      const parsed = JSON.parse(jsonMatch[1]);\n      \n      // Normalize the data\n      return {\n        json: {\n          index: index,\n          date: parsed.date === \"null\" || parsed.date === \"NULL\" || parsed.date === \"\" ? null : parsed.date,\n          salary: parsed.salary === \"null\" || parsed.salary === \"NULL\" ? null : parsed.salary,\n          skills: Array.isArray(parsed.skills) ? parsed.skills : []\n        }\n      };\n    } catch (e) {\n      console.error(`Error parsing item at index ${index}:`, e.message);\n      return null;\n    }\n  })\n  .filter(item => item !== null); // Remove null entries\n\nreturn formatted;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2224,
+        -288
+      ],
+      "id": "145ba477-a773-43de-872e-3a937bb8302c",
+      "name": "Format date, salary and skills",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const infos = Object.values($(\"Format date, salary and skills\").all());\nconst internships = Object.values($(\"Filter for not empty raw_content\").all());\n\nconst combinations = [];\n\nfor (let i = 0; i < infos.length; i++) {\n    const internship = internships[i]\n    const info = infos[i]\n    combinations.push({\n      city_score: internship.json.city_score,\n      answer: internship.json.answer,\n      content: internship.json.content,\n      url: internship.json.url,\n      title: internship.json.title,\n      // raw_content: internship.json.raw_content\n      \n      date: info.json.date,\n      salary: info.json.salary,\n      skills: info.json.skills\n    });\n}\n\nreturn combinations;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        -16
+      ],
+      "id": "950fcc75-34c7-4218-ba33-8637bce5fe10",
+      "name": "Combine internships and date, salary, skills"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0f8b7c03-e564-4c09-a22e-c2af074b06b7",
+              "leftValue": "={{ $json.date }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        3056,
+        -16
+      ],
+      "id": "304c1a24-bfb0-4968-9963-98820a394e0c",
+      "name": "Keep only internships with dates"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are given the following data:\n\n{{ $json.content }}, {{ $json.answer }}\n\nProvides a quick summary in two sentences including only important infos : what is required, what is the company. Do NOT say what you are going to do, only the result. Do NOT use markdown, only plain text. Do NOT include any formatting like \\n.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        3536,
+        -304
+      ],
+      "id": "8dbd54aa-d989-49e3-8ff3-72ef129578c0",
+      "name": "Provides a quick summary",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "type": "random"
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        4560,
+        -16
+      ],
+      "id": "1d1dc949-9a45-44c9-9d05-455fabb0337d",
+      "name": "Randomly mix results",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "392327ec-3de5-41b6-8156-59340c6e0027",
+      "name": "Merge",
+      "alwaysOutputData": false,
+      "executeOnce": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1056,
+        0
+      ],
+      "id": "07561867-7a50-4ccf-ba4c-ce00287d6b3b",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4000,
+        -16
+      ],
+      "id": "049c0f3e-a0d0-4e2f-b4cc-32940603af1d",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "model": "liquid/lfm-2.2-6b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        -64
+      ],
+      "id": "70827fa2-f508-413c-8de9-77e2042bb8f4",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "OaVZqcvE6JGJWki1",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": "liquid/lfm-2.2-6b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        3536,
+        -112
+      ],
+      "id": "82efd2b7-38f3-42fd-8a08-4b8f045b7220",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "OaVZqcvE6JGJWki1",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2528,
+        -16
+      ],
+      "id": "6576c4d8-33dd-4fc1-a5a6-767c8dc0075b",
+      "name": "Merge3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        4464,
+        160
+      ],
+      "id": "6aa3e38f-f314-478e-b319-8abc839a3010",
+      "name": "Convert to File",
+      "alwaysOutputData": false,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d472ff72-9f31-4be1-be52-516175d79a83",
+              "leftValue": "={{ $json.date }}",
+              "rightValue": "2026",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        3280,
+        -16
+      ],
+      "id": "b6504111-e1e7-40d4-ad1a-5fd10529eabf",
+      "name": "Keep only internships in 2026"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Group items by index - assuming first half has outputs, second half has detailed info\nconst halfLength = Math.floor(items.length / 2);\nconst outputs = items.slice(0, halfLength);\nconst details = items.slice(halfLength);\n\nreturn outputs.map((item, index) => {\n  const outputData = item.json;\n  const detailData = details[index] ? details[index].json : {};\n  \n  return {\n    json: {\n      index: index,\n      \n      // Combine both data sources\n      output: outputData.output || detailData.output || null,\n      answer: detailData.answer || null,\n      content: detailData.content || null,\n      \n      // Metadata from detailed data\n      city_score: detailData.city_score ? parseFloat(detailData.city_score) : null,\n      url: detailData.url || null,\n      title: detailData.title || null,\n      date: detailData.date || outputData.date || null,\n      salary: detailData.salary || outputData.salary || null,\n      skills: detailData.skills || outputData.skills || [],\n\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4208,
+        -16
+      ],
+      "id": "53caf7cd-920e-46fd-a5c5-3069c63e9d1a",
+      "name": "Combine infos and summary"
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4768,
+        -16
+      ],
+      "id": "9cd90b57-f707-41dc-9a8a-be4c8d320f90",
+      "name": "Get only 5 results"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "cities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "technologies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "technologies": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "cities": {
+      "main": [
+        [
+          {
+            "node": "Get city_score",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Get city_score",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "Get city_score",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get city_score": {
+      "main": [
+        [
+          {
+            "node": "JSON city_score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combining Script": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON city_score": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten results and concatenate city_score": {
+      "main": [
+        [
+          {
+            "node": "Sort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort": {
+      "main": [
+        [
+          {
+            "node": "Filter for not empty raw_content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter for not empty raw_content": {
+      "main": [
+        [
+          {
+            "node": "Extract date, salary and skills",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract date, salary and skills": {
+      "main": [
+        [
+          {
+            "node": "Format date, salary and skills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format date, salary and skills": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine internships and date, salary, skills": {
+      "main": [
+        [
+          {
+            "node": "Keep only internships with dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep only internships with dates": {
+      "main": [
+        [
+          {
+            "node": "Keep only internships in 2026",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Provides a quick summary": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Randomly mix results": {
+      "main": [
+        [
+          {
+            "node": "Get only 5 results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Combining Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Flatten results and concatenate city_score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Combine infos and summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract date, salary and skills",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Provides a quick summary",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge3": {
+      "main": [
+        [
+          {
+            "node": "Combine internships and date, salary, skills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep only internships in 2026": {
+      "main": [
+        [
+          {
+            "node": "Provides a quick summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine infos and summary": {
+      "main": [
+        [
+          {
+            "node": "Randomly mix results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get only 5 results": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "ec4c5db7-d907-4645-af3f-0f939858111d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "077be64ac5f495addb3cda0eee36523745b7d58061ddfae1d47776f887b0a88c"
+  },
+  "id": "m9x3cZIW8NVbZrjUK66Kz",
+  "tags": []
+}
